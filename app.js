@@ -1,8 +1,13 @@
 const express = require('express');
 const app = express();
 const PORT = process.env.PORT || 3000;
+const getRouter = express.Router();
 
+// invoke a JSON parser
 app.use(express.json());
+
+// use getRouter
+app.use('/budget/retrieve', getRouter);
 
 // list of envelopes
 let envelopes = [];
@@ -32,8 +37,25 @@ app.get('/', (req, res) => {
   res.status(200).send('Hello World');
 });
 
+// create a param vaidator for 'category' parameter
+getRouter.param('category', (req, res, next, category) => {
+  try {
+    // check for category existence
+    const index = envelopes.findIndex(envelop => envelop.category === category);
+    if (index === -1) {
+      return res.status(404).send('Category does not exist.')
+    }
+
+    const envelop = envelopes[index];
+    req.envelop = envelop;
+    next();
+  } catch(err) {
+    next(err);
+  }
+})
+
 // create a new envelop
-app.post('/create/', postValidator, (req, res, next) => {
+app.post('/budget/create', postValidator, (req, res, next) => {
   try {
     const envelop = {
       category: req.body.category,
@@ -48,6 +70,19 @@ app.post('/create/', postValidator, (req, res, next) => {
     next(err);
   }
   
+});
+
+// middleware to get all envelopes
+getRouter.get('/', (req, res, next) => {
+  res.status(200).send(envelopes);
+});
+
+// middleware to get a specific envelop
+getRouter.get('/:category', (req, res, next) => {
+  if (!req.envelop) {
+    return res.status(404).send('Envelop not found');
+  }
+  res.status(200).send(req.envelop);
 });
 
 // error middleware
