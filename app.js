@@ -7,7 +7,7 @@ const getRouter = express.Router();
 app.use(express.json());
 
 // use getRouter
-app.use('/budget/retrieve', getRouter);
+app.use('/envelop', getRouter);
 
 // list of envelopes
 let envelopes = [];
@@ -48,6 +48,7 @@ getRouter.param('category', (req, res, next, category) => {
 
     const envelop = envelopes[index];
     req.envelop = envelop;
+    req.index = index;
     next();
   } catch(err) {
     next(err);
@@ -55,7 +56,7 @@ getRouter.param('category', (req, res, next, category) => {
 })
 
 // create a new envelop
-app.post('/budget/create', postValidator, (req, res, next) => {
+getRouter.post('/create', postValidator, (req, res, next) => {
   try {
     const envelop = {
       category: req.body.category,
@@ -73,23 +74,43 @@ app.post('/budget/create', postValidator, (req, res, next) => {
 });
 
 // middleware to get all envelopes
-getRouter.get('/', (req, res, next) => {
+getRouter.get('/retrieve', (req, res, next) => {
   res.status(200).send(envelopes);
 });
 
 // middleware to get a specific envelop
-getRouter.get('/:category', (req, res, next) => {
+getRouter.get('/retrieve/:category', (req, res, next) => {
   if (!req.envelop) {
     return res.status(404).send('Envelop not found');
   }
   res.status(200).send(req.envelop);
 });
 
+// spend money from an envelop
+getRouter.put('/withdraw/:category', (req, res, next) => {
+  try {
+    const expense = req.body.expense;
+    const budget = req.envelop.budget;
+    const index = req.index;
+    if (budget < expense) {
+      return res.status(400).send('Insufficient funds');
+    }
+    const updatedBudget = budget - expense;
+    envelopes[index].budget = updatedBudget;
+    res.status(200).json({
+      message: `You've successfully withdrawn ${expense} from your ${req.envelop.category} envelop.`,
+      data: envelopes[index]
+    });
+  } catch(err) {
+    next(err);
+  }
+});
+
 // error middleware
 app.use((err, req, res, next) => {
   res.status(err.status || 500).send(err.message || 'Technical error!');
-})
+});
 
 app.listen(PORT, () => {
   console.log(`App is now listening on Port ${PORT}.`);
-})
+});
