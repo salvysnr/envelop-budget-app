@@ -31,7 +31,12 @@ const postValidator = (req, res, next) => {
 
   req.body.budget = budget;
   next();
-}
+};
+
+// findIndex helper function
+const indexFinder = (category) => {
+  return envelopes.findIndex(envelop => envelop.category === category);
+};
 
 app.get('/', (req, res) => {
   res.status(200).send('Hello World');
@@ -41,7 +46,7 @@ app.get('/', (req, res) => {
 getRouter.param('category', (req, res, next, category) => {
   try {
     // check for category existence
-    const index = envelopes.findIndex(envelop => envelop.category === category);
+    const index = indexFinder(category);
     if (index === -1) {
       return res.status(404).send('Category does not exist.')
     }
@@ -53,7 +58,69 @@ getRouter.param('category', (req, res, next, category) => {
   } catch(err) {
     next(err);
   }
-})
+});
+
+// create middleware function to handle body validation for transfer of funds
+const transferValidation = (req, res, next) => {
+  try {
+    if(!req.body.source && !req.body.target) {
+      return res.status(400).send('Insufficient data provided.');
+    }
+
+    const sourceCategory = req.body.source.category;
+    const destinationCategory = req.body.destination.category;
+    const sourceIndex = indexFinder(sourceCategory);
+    let destinationIndex = indexFinder(destinationCategory);
+    const amount = req.body.amount;
+
+    // check if source index exists
+    if (sourceIndex === -1) {
+      return res.status(400).send('Source envelop does not exist.');
+    }
+
+    // validate if there's sufficient balance in the source envelop
+    let sourceBalance = envelopes[sourceIndex].budget;
+    if (sourceBalance < amount) {
+      return res.status(400).send('Insufficient balance');
+    }
+
+    if (destinationIndex !== -1) {
+      let destinationBalance = envelopes[destinationIndex].budget;
+
+      sourceBalance -= amount;
+      destinationBalance += amount;
+
+      envelopes[sourceIndex].budget = sourceBalance;
+      envelopes[destinationIndex].budget = destinationBalance;
+      
+      req.sourceIndex = sourceIndex;
+      req.destinationIndex = destinationIndex;
+
+      next();
+
+    } else {
+      sourceBalance -= amount;
+
+      let destinationBalance = amount;
+
+      const newCategory = {
+        category: destinationCategory,
+        budget: destinationBalance
+      };
+
+      envelopes.push(newCategory);
+
+      destinationIndex = indexFinder(destinationCategory);
+
+      req.sourceIndex = sourceIndex;
+      req.destinationIndex = destinationIndex;
+
+      next();
+    }
+  } catch(err) {
+    next(err);
+  }
+}
 
 // create a new envelop
 getRouter.post('/create', postValidator, (req, res, next) => {
@@ -104,6 +171,19 @@ getRouter.put('/withdraw/:category', (req, res, next) => {
   } catch(err) {
     next(err);
   }
+});
+
+// Create PUT middleware to help users transfer funds from one envelop to another
+getRouter.put('/transfer', transferValidation, (req, res, next) => {
+  const sourceEnvelop = envelopes[req.sourceIndex];
+  const destinationEnvelop = envelopes[req.destinationIndex];
+  res.status(200).json({
+    message: `You have successfully transferred ${req.body.amount} from ${sourceEnvelop.category} to ${destinationEnvelop.category}.`,
+    data: [
+      sourceEnvelop,
+      destinationEnvelop
+    ]
+  });
 });
 
 // error middleware
