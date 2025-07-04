@@ -63,7 +63,7 @@ getRouter.param('category', (req, res, next, category) => {
 // create middleware function to handle body validation for transfer of funds
 const transferValidation = (req, res, next) => {
   try {
-    if(!req.body.source && !req.body.target) {
+    if(!req.body.source && !req.body.destination) {
       return res.status(400).send('Insufficient data provided.');
     }
 
@@ -186,6 +186,14 @@ getRouter.put('/transfer', transferValidation, (req, res, next) => {
   });
 });
 
+// create middleware to handle delete requests
+
+getRouter.delete('/remove/:category', (req, res, next) => {
+  const param = req.params.category;
+  envelopes.splice(req.index, 1);
+  res.status(200).send(`You've successfully deleted the ${param} envelop.`);
+});
+
 // error middleware
 app.use((err, req, res, next) => {
   res.status(err.status || 500).send(err.message || 'Technical error!');
@@ -194,3 +202,9 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`App is now listening on Port ${PORT}.`);
 });
+
+// {
+//     "source": { "category": "vacation" },
+//     "destination": { "category": "rent" },
+//     "amount": 50
+// }
