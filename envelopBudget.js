@@ -202,9 +202,3 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`App is now listening on Port ${PORT}.`);
 });
-
-// {
-//     "source": { "category": "vacation" },
-//     "destination": { "category": "rent" },
-//     "amount": 50
-// }
